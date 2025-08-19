@@ -20,29 +20,32 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("🔌 socket connected", socket.id);
 
-  socket.on("send-location", async (data) => {
-    try {
-      const userId = data.userId || socket.id;
-      if (typeof data.lat !== "number" || typeof data.lng !== "number") return;
 
-      const doc = await Location.create({
-        userId,
-        lat: data.lat,
-        lng: data.lng,
-        accuracy: data.accuracy,
-        speed: data.speed
-      });
+socket.on("send-location", async (data) => {
+  const userId = data.userId || socket.id;
 
-      io.emit("receive-location", {
-        userId,
-        lat: doc.lat,
-        lng: doc.lng,
-        timestamp: doc.timestamp
-      });
-    } catch (e) {
-      console.error("save error:", e.message);
-    }
+  // Save location
+  const loc = await Location.create({
+    userId,
+    lat: data.lat,
+    lng: data.lng,
+    speed: data.speed,
+    timestamp: new Date()
   });
+
+  // Speed alert check
+  const SPEED_LIMIT = 60; // km/h
+  if (data.speed && data.speed > SPEED_LIMIT) {
+    io.to(socket.id).emit("speed-alert", {
+      userId,
+      speed: data.speed,
+      message: `Speed limit exceeded! ${data.speed} km/h`
+    });
+  }
+
+  io.emit("receive-location", { userId, lat: data.lat, lng: data.lng, speed: data.speed });
+});
+
 
   socket.on("disconnect", () => {
     console.log("🔌 socket disconnected", socket.id);

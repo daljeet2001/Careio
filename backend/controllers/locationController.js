@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 const User = require("../models/User");
+const SafeZone = require("../models/SafeZone");
 
 
 // Signup
@@ -94,3 +95,33 @@ exports.deleteHistory = async (req, res) => {
   const r = await Location.deleteMany({ userId });
   res.json({ deleted: r.deletedCount });
 };
+
+
+
+
+// Create a safe zone
+exports.createZone = async (req, res) => {
+  const { name, center, radius } = req.body;
+  const zone = await SafeZone.create({ parentId: req.user.userId, name, center, radius });
+  res.json(zone);
+};
+
+// Get all safe zones for the user
+exports.getZones = async (req, res) => {
+  const zones = await SafeZone.find({ parentId: req.user.userId });
+  res.json(zones);
+};
+
+// Delete a safe zone
+exports.deleteZone = async (req, res) => {
+  try {
+    const deleted = await SafeZone.findByIdAndDelete(req.params.zoneId);
+    if (!deleted) return res.status(404).json({ msg: "Zone not found" });
+    res.json({ msg: "Zone deleted", deleted });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+

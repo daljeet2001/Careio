@@ -4,6 +4,7 @@ const LocationSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
   lat: { type: Number, required: true },
   lng: { type: Number, required: true },
+  speed: { type: Number, default: 0 },
   timestamp: { type: Date, default: Date.now, index: true }
 });
 
