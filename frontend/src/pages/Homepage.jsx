@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useMemo,
   useRef,
+  useContext,
 } from "react";
 import { Menu, LogOut, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -15,10 +16,10 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { useNavigate } from "react-router";
-import { io } from "socket.io-client";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { SocketContext } from "../context/socket.context";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -40,16 +41,20 @@ function Homepage() {
   const token = localStorage.getItem("token");
 
   const [users, setUsers] = useState([]);
-  const [myLocation, setMyLocation] = useState(null);
+  const [myLocation, setMyLocation] = useState({
+    latitude: 0,
+    longitude: 0,
+    speed: 0,
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
   const mapRef = useRef(null);
-  const socketRef = useRef(null);
+  const { socket } = useContext(SocketContext);
 
+  // Fetch users once
   useEffect(() => {
     const fetchUsers = async () => {
       setLoadingUsers(true);
@@ -75,84 +80,78 @@ function Homepage() {
     else navigate("/login");
   }, [token, API_URL, navigate]);
 
+  // Send my location every 10s
   useEffect(() => {
-    if (!token) return;
+    const updateLocation = () => {
+      if (navigator.geolocation && socket) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const locData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            speed: position.coords.speed ? position.coords.speed * 3.6 : 0,
+          };
+          setMyLocation(locData);
 
-    if (!socketRef.current) {
-      socketRef.current = io(SOCKET_URL, {
-        auth: { token },
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-      });
-    }
-    const socket = socketRef.current;
-
-    socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-    });
-
-    socket.on("receive-location", (data) => {
-      setUsers((prev) => {
-        const idx = prev.findIndex((u) => u._id === data.userId);
-        if (idx === -1) return prev;
-
-        if (
-          prev[idx].lat === data.lat &&
-          prev[idx].lng === data.lng &&
-          prev[idx].speed === data.speed
-        ) {
-          return prev;
-        }
-
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], ...data };
-        return updated;
-      });
-    });
-
-    socket.on("speed-alert", (alert) => {
-      if (alert.message) window.alert(alert.message);
-    });
-
-    let lastSent = { lat: null, lng: null };
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude, speed } = pos.coords;
-        setMyLocation((prev) => {
-          if (
-            prev &&
-            Math.abs(prev.lat - latitude) < 0.0001 &&
-            Math.abs(prev.lng - longitude) < 0.0001
-          ) {
-            return prev;
-          }
-          return { lat: latitude, lng: longitude };
-        });
-
-         
           socket.emit("send-location", {
             userId: user.id,
-            lat: latitude,
-            lng: longitude,
-            speed: speed ? speed * 3.6 : 0,
+            lat: locData.latitude,
+            lng: locData.longitude,
+            speed: locData.speed,
           });
-          lastSent = { lat: latitude, lng: longitude };
-        
-      },
-      (err) => console.error("Geolocation error:", err),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-    );
-
-    return () => {
-      socket.off("speed-alert");
-      socket.off("receive-location");
-      socket.emit("send-location");
-      socket.disconnect();
-      navigator.geolocation.clearWatch(watchId);
+        });
+      }
     };
-  }, [token, user.id, SOCKET_URL]);
+
+    updateLocation();
+    const interval = setInterval(updateLocation, 10000);
+    return () => clearInterval(interval);
+  }, [socket, user.id]);
+
+  // Receive locations from server
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReceiveLocation = (data) => {
+      setUsers((prevUsers) => {
+        const idx = prevUsers.findIndex((u) => u.userId === data.userId);
+        if (idx !== -1) {
+          const updated = [...prevUsers];
+          updated[idx] = {
+            ...updated[idx],
+            lastLat: data.lat,
+            lastLng: data.lng,
+            speed: data.speed,
+          };
+          return updated;
+        } else {
+          return [
+            ...prevUsers,
+            {
+              userId: data.userId,
+              lastLat: data.lat,
+              lastLng: data.lng,
+              speed: data.speed,
+              userName: data.userName || "Unnamed",
+            },
+          ];
+        }
+      });
+    };
+
+    socket.on("receive-location", handleReceiveLocation);
+
+    return () => socket.off("receive-location", handleReceiveLocation);
+  }, [socket]);
+
+  // Speed alert
+  useEffect(() => {
+    if (!socket) return;
+    const handleSpeedAlert = (alert) => {
+      if (alert.message) window.alert(alert.message);
+    };
+    socket.on("speed-alert", handleSpeedAlert);
+    return () => socket.off("speed-alert", handleSpeedAlert);
+  }, [socket]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
@@ -160,25 +159,23 @@ function Homepage() {
     navigate("/login");
   }, [navigate]);
 
-  const userMarkers = useMemo(
-    () =>
-      users
-        .filter((u) => u.lastLat && u.lastLng)
-        .map((u) => (
-          <Marker
-            key={u.id}
-            position={[u.lastLat, u.lastLng]}
-            icon={u.id === user.id ? myIcon : new L.Icon.Default()}
-          >
-            <Popup>
-              <b>{u.name || "Unnamed"}</b>
-              <br />
-              🚗 {u.speed ?? 0} km/h
-            </Popup>
-          </Marker>
-        )),
-    [users, user.id]
-  );
+  const userMarkers = useMemo(() => {
+    return users
+      .filter((u) => u.lastLat && u.lastLng)
+      .map((u) => (
+        <Marker
+          key={u.userId}
+          position={[u.lastLat, u.lastLng]}
+          icon={u.userId === user.id ? myIcon : new L.Icon.Default()}
+        >
+          <Popup>
+            <b>{u.userName || "Unnamed"}</b>
+            <br />
+            🚗 {u.speed ?? 0} km/h
+          </Popup>
+        </Marker>
+      ));
+  }, [users, user.id]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
@@ -193,6 +190,7 @@ function Homepage() {
         </Button>
 
         <div className="flex items-center gap-3">
+          {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -270,22 +268,23 @@ function Homepage() {
 
         <div className="h-[500px] w-full rounded-xl overflow-hidden shadow-md relative z-10">
           <MapContainer
-            center={myLocation ? [myLocation.lat, myLocation.lng] : [20, 77]}
-            zoom={myLocation ? 13 : 5}
+            center={[myLocation.latitude, myLocation.longitude]}
+            zoom={16}
             style={{ height: "100%", width: "100%" }}
-            whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
             ref={mapRef}
+            whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
           >
             <TileLayer
               attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {myLocation && (
-              <Marker position={[myLocation.lat, myLocation.lng]} icon={myIcon}>
-                <Popup>You are here 🚶‍♂️</Popup>
-              </Marker>
-            )}
+            <Marker
+              position={[myLocation.latitude, myLocation.longitude]}
+              icon={myIcon}
+            >
+              <Popup>You are here 🚶‍♂️</Popup>
+            </Marker>
 
             {userMarkers}
           </MapContainer>

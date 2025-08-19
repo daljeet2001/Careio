@@ -49,7 +49,6 @@ exports.signin = async (req, res) => {
 
 // Logout
 exports.logout = (_req, res) => {
-  // For JWT, logout is handled on client-side by deleting token
   res.json({ msg: "Logged out successfully" });
 };
 
@@ -98,7 +97,6 @@ exports.getUsers = async (_req, res) => {
     },
   ]);
 
-  console.log(agg);
   res.json(agg);
 };
 
