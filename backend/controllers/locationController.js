@@ -70,35 +70,35 @@ exports.getHistory = async (req, res) => {
 };
 
 // Get all users with their latest location
-exports.getUsers = async (_req, res) => {
-  const agg = await Location.aggregate([
-    { $sort: { timestamp: -1 } }, // newest first
-    { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id",
-        foreignField: "userId",
-        as: "userInfo",
-      },
-    },
-    { $unwind: "$userInfo" },
-    {
-      $project: {
-        _id: 0,
-        userId: "$_id",
-        name: "$userInfo.name",
-        email: "$userInfo.email",
-        lastLat: "$last.lat",
-        lastLng: "$last.lng",
-        speed: "$last.speed",
-        timestamp: "$last.timestamp",
-      },
-    },
-  ]);
+// exports.getUsers = async (_req, res) => {
+//   const agg = await Location.aggregate([
+//     { $sort: { timestamp: -1 } }, 
+//     { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
+//     {
+//       $lookup: {
+//         from: "users",
+//         localField: "_id",
+//         foreignField: "userId",
+//         as: "userInfo",
+//       },
+//     },
+//     { $unwind: "$userInfo" },
+//     {
+//       $project: {
+//         _id: 0,
+//         userId: "$_id",
+//         name: "$userInfo.name",
+//         email: "$userInfo.email",
+//         lastLat: "$last.lat",
+//         lastLng: "$last.lng",
+//         speed: "$last.speed",
+//         timestamp: "$last.timestamp",
+//       },
+//     },
+//   ]);
 
-  res.json(agg);
-};
+//   res.json(agg);
+// };
 
 // Get the latest location for a specific user
 exports.getLatest = async (req, res) => {
@@ -123,6 +123,7 @@ exports.createZone = async (req, res) => {
     center,
     radius,
   });
+  console.log(zone)
   res.json(zone);
 };
 
