@@ -5,7 +5,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 const User = require("../models/User");
 const SafeZone = require("../models/SafeZone");
 
-
 // Signup
 exports.signup = async (req, res) => {
   const { name, email, password } = req.body;
@@ -16,7 +15,9 @@ exports.signup = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashed });
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
     res.json({ token, user: { id: user._id, name, email } });
   } catch (err) {
     res.status(500).json({ msg: err.message });
@@ -25,15 +26,21 @@ exports.signup = async (req, res) => {
 
 // Signin
 exports.signin = async (req, res) => {
+  console.log("signin");
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: "Invalid email or password" });
+    if (!user)
+      return res.status(400).json({ msg: "Invalid email or password" });
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ msg: "Invalid email or password" });
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "7d" });
+    if (!match)
+      return res.status(400).json({ msg: "Invalid email or password" });
+
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
     res.json({ token, user: { id: user._id, name: user.name, email } });
   } catch (err) {
     res.status(500).json({ msg: err.message });
@@ -57,28 +64,41 @@ exports.getHistory = async (req, res) => {
   // Query: all locations for userId from last week
   const data = await Location.find({
     userId,
-    timestamp: { $gte: oneWeekAgo }
+    timestamp: { $gte: oneWeekAgo },
   }).sort({ timestamp: 1 }); // oldest to newest
 
   res.json(data);
 };
 
-
 // Get all users with their latest location
 exports.getUsers = async (_req, res) => {
   const agg = await Location.aggregate([
-    { $sort: { timestamp: -1 } },
+    { $sort: { timestamp: -1 } }, // newest first
     { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "userId",
+        as: "userInfo",
+      },
+    },
+    { $unwind: "$userInfo" },
     {
       $project: {
         _id: 0,
         userId: "$_id",
+        name: "$userInfo.name",
+        email: "$userInfo.email",
         lastLat: "$last.lat",
         lastLng: "$last.lng",
-        timestamp: "$last.timestamp"
-      }
-    }
+        speed: "$last.speed",
+        timestamp: "$last.timestamp",
+      },
+    },
   ]);
+
+  console.log(agg);
   res.json(agg);
 };
 
@@ -96,13 +116,15 @@ exports.deleteHistory = async (req, res) => {
   res.json({ deleted: r.deletedCount });
 };
 
-
-
-
 // Create a safe zone
 exports.createZone = async (req, res) => {
   const { name, center, radius } = req.body;
-  const zone = await SafeZone.create({ parentId: req.user.userId, name, center, radius });
+  const zone = await SafeZone.create({
+    parentId: req.user.userId,
+    name,
+    center,
+    radius,
+  });
   res.json(zone);
 };
 
@@ -123,5 +145,3 @@ exports.deleteZone = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-
