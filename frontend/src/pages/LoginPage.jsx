@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -125,12 +126,12 @@ function LoginPage() {
             {/* Footer */}
             <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 font-bebas">
               Don’t have an account?{" "}
-              <a
-                href="https://careio-h4u2.vercel.app/signup"
+              <Link
+                to="/signup"
                 className="font-medium text-blue-600 hover:underline"
               >
                 Sign up
-              </a>
+              </Link>
             </p>
           </CardContent>
         </Card>
