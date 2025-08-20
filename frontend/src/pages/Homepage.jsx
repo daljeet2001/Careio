@@ -184,13 +184,14 @@ function Homepage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
       {/* HEADER */}
       <header className="flex items-center justify-between px-4 py-3 shadow-md bg-white dark:bg-gray-800 relative z-50">
-        <Button
+        {/* <Button
           variant="ghost"
           size="icon"
           onClick={() => setSidebarOpen((prev) => !prev)}
         >
           <Menu className="h-6 w-6" />
-        </Button>
+        </Button> */}
+        <div className="">Careio</div>
 
         <div className="flex items-center gap-3">
           <DropdownMenu>
