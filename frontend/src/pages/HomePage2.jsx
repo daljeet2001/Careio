@@ -7,6 +7,8 @@ import React, {
   useContext,
 } from "react";
 import { toast } from "react-hot-toast";
+import { History } from "lucide-react";
+import axios from "axios";
 
 import { Menu, LogOut, Users, PlusCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -23,6 +25,7 @@ import {
   MapContainer,
   TileLayer,
   Marker,
+  Polyline,
   Popup,
   Circle,
   useMapEvents,
@@ -103,7 +106,7 @@ function HomePage2() {
     if (token) fetchUsers();
     else navigate("/login");
     // Poll every 5 seconds
-  const intervalId = setInterval(fetchUsers, 5000);
+  const intervalId = setInterval(fetchUsers, 10000); // 10000 ms = 10 seconds
   
 
   // Cleanup on unmount
@@ -148,7 +151,7 @@ function HomePage2() {
       }
     };
     updateLocation();
-    const interval = setInterval(updateLocation, 1000);
+    const interval = setInterval(updateLocation, 10000); // Update every 10 seconds
     return () => clearInterval(interval);
   }, [socket, user.id]);
 
@@ -259,6 +262,10 @@ const userMarkers = useMemo(
     });
     return null;
   }
+
+  const [weeklylocations, setWeeklyLocations] = useState([]);
+
+
 
  
 
@@ -443,12 +450,35 @@ const userMarkers = useMemo(
               {u.name?.charAt(0).toUpperCase() || "U"}
             </div>
             <span className="font-bebas">{u.name || "Unnamed"}</span>
+                 <div> <History
+                    size={10}
+                    className="cursor-pointer text-gray-700 hover:text-gray-900 cursor-progress"
+                     onClick={async (e) => {
+            e.stopPropagation(); // prevent map centering click
+            try {
+              const response = await axios.get(
+                `${API_URL}/history/${u.userId}`,
+                {
+                  headers: {
+                   Authorization: `Bearer ${localStorage.getItem("token")}`, // replace with your token
+                  },
+                }
+              );
+              setWeeklyLocations(response.data);
+              console.log("user weekly history", response.data);
+            } catch (error) {
+              console.error("Error fetching history:", error);
+            }
+          }}
+              /></div>
           </div>
           {u.lastLat && u.lastLng && (
             <span className="text-xs text-gray-500">
               📍 {u.lastLat.toFixed(4)}, {u.lastLng.toFixed(4)}
             </span>
+
           )}
+       
         </div>
       ))
     ) : (
@@ -535,6 +565,27 @@ const userMarkers = useMemo(
                   </Popup>
                 </Marker>
               )}
+
+{weeklylocations.length > 0 && (
+  <>
+    {/* Polyline connecting all weekly locations */}
+    <Polyline
+      positions={weeklylocations.map((loc) => [loc.lat, loc.lng])}
+      pathOptions={{ color: "gray", weight: 3 }}
+    />
+
+    {/* Markers at each location */}
+    {weeklylocations.map((loc, idx) => (
+      <Marker key={idx} position={[loc.lat, loc.lng]} icon={flagIcon}>
+        <Popup>
+          <span className="font-bebas">
+            {new Date(loc.timestamp).toLocaleString()}
+          </span>
+        </Popup>
+      </Marker>
+    ))}
+  </>
+)}
             </MapContainer>
           ) : (
             <div className="w-full h-full flex items-center justify-center animate-pulse">
@@ -543,6 +594,8 @@ const userMarkers = useMemo(
               </p>
             </div>
           )}
+
+
         </div>
       </main>
     </div>

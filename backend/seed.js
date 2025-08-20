@@ -53,6 +53,37 @@ async function seedDB() {
     ];
 
     await Location.insertMany(locations);
+
+
+    // Generate hourly locations for 1 month for a specific user
+    const targetUserId = "eb824779-c07b-45b9-89df-cc63abca592e";
+    const baseLat = 30.604968;
+    const baseLng = 76.862943;
+    const location = [];
+    const now = new Date();
+
+    for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const timestamp = new Date(now);
+        timestamp.setDate(now.getDate() - dayOffset);
+        timestamp.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+
+        // Slightly vary lat/lng to simulate movement
+        const lat = baseLat + (Math.random() - 0.5) * 0.002;
+        const lng = baseLng + (Math.random() - 0.5) * 0.002;
+
+        location.push({
+          userId: targetUserId,
+          lat,
+          lng,
+          speed: Math.floor(Math.random() * 5),
+          timestamp,
+        });
+      }
+    }
+
+    await Location.insertMany(location);
+    console.log("🌱 Seeded hourly locations for 1 month");
     console.log("🌱 Seed data inserted");
 
     mongoose.connection.close();

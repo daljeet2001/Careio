@@ -53,22 +53,38 @@ exports.logout = (_req, res) => {
   res.json({ msg: "Logged out successfully" });
 };
 
-// Get location history for a user in the last 7 days
+// Get location history for a user in the last 7 days (one per hour)
 exports.getHistory = async (req, res) => {
   const { userId } = req.params;
 
-  // Calculate date 7 days ago
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-  // Query: all locations for userId from last week
-  const data = await Location.find({
+  // Fetch all locations for the user in the last 7 days
+  const locations = await Location.find({
     userId,
     timestamp: { $gte: oneWeekAgo },
   }).sort({ timestamp: 1 }); // oldest to newest
 
-  res.json(data);
+  // Filter to get only one location per hour
+  const hourlyLocations = [];
+  let lastHour = null;
+
+  for (const loc of locations) {
+    const locHour = loc.timestamp.getFullYear() + '-' + 
+                    loc.timestamp.getMonth() + '-' +
+                    loc.timestamp.getDate() + '-' +
+                    loc.timestamp.getHours();
+
+    if (locHour !== lastHour) {
+      hourlyLocations.push(loc);
+      lastHour = locHour;
+    }
+  }
+
+  res.json(hourlyLocations);
 };
+
 
 // Get all users with their latest location
 exports.getUsers = async (req, res) => {
