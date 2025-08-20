@@ -27,15 +27,17 @@ io.on("connection", (socket) => {
 
   socket.on("send-location", async (data) => {
     console.log("got info");
-    const userId = data.id;
+    const userId = data.userId;
     // Save location
-    const loc = await Location.create({
-      userId,
-      lat: data.lat,
-      lng: data.lng,
-      speed: data.speed,
-      timestamp: new Date(),
-    });
+    console.log(data);
+    // const loc = await Location.create({
+    //   userId,
+    //   lat: data.lat,
+    //   lng: data.lng,
+    //   speed: data.speed,
+    //   timestamp: new Date(),  
+    // });
+    // console.log("check",loc);
     // Speed alert check
     const SPEED_LIMIT = 60; // km/h
     if (data.speed && data.speed > SPEED_LIMIT) {
@@ -45,6 +47,7 @@ io.on("connection", (socket) => {
         message: `Speed limit exceeded! ${data.speed} km/h`,
       });
     }
+    console.log("check");
 
     io.emit("receive-location", {
       userId,

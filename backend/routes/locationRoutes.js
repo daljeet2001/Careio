@@ -10,7 +10,7 @@ router.post("/signup", signup);
 router.post("/signin", signin);
 router.post("/logout", logout);
 router.get("/history/:userId", auth, getHistory);
-router.get("/users",auth, getUsers);
+// router.get("/users",auth, getUsers);
 router.get("/users/:userId/latest",auth, getLatest);
 router.delete("/history/:userId",auth, deleteHistory);
 router.post("/safezone/create", auth, createZone);    
