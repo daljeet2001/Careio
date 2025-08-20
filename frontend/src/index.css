@@ -1,5 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=WDXL+Lubrifont+TC&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+
+body {
+  background: url('/500.jpg') no-repeat center center fixed;
+  background-size: cover;
+}
+
+
+@theme {
+  --font-bebas: "Bebas Neue", sans-serif;
+}
+
+@theme {
+  --font-wdxl: "WDXL Lubrifont TC", sans-serif;
+}
+
 
 @custom-variant dark (&:is(.dark *));
 

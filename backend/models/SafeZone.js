@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const SafeZoneSchema = new mongoose.Schema({
-  parentId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  parentId: { type: String, required: true },
   name: { type: String, required: true },       // e.g., "Home", "School"
   center: {
     lat: { type: Number, required: true },

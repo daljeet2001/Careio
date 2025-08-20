@@ -14,11 +14,12 @@ exports.signup = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashed });
+    console.log("User created:", user);
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
       expiresIn: "7d",
     });
-    res.json({ token, user: { id: user._id, name, email } });
+    res.json({ token, user: { id: user.userId, name, email } });
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
@@ -38,10 +39,10 @@ exports.signin = async (req, res) => {
     if (!match)
       return res.status(400).json({ msg: "Invalid email or password" });
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
       expiresIn: "7d",
     });
-    res.json({ token, user: { id: user._id, name: user.name, email } });
+    res.json({ token, user: { id: user.userId, name: user.name, email } });
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
@@ -49,7 +50,6 @@ exports.signin = async (req, res) => {
 
 // Logout
 exports.logout = (_req, res) => {
-  // For JWT, logout is handled on client-side by deleting token
   res.json({ msg: "Logged out successfully" });
 };
 
@@ -71,36 +71,48 @@ exports.getHistory = async (req, res) => {
 };
 
 // Get all users with their latest location
-exports.getUsers = async (_req, res) => {
-  const agg = await Location.aggregate([
-    { $sort: { timestamp: -1 } }, // newest first
-    { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id",
-        foreignField: "userId",
-        as: "userInfo",
-      },
-    },
-    { $unwind: "$userInfo" },
-    {
-      $project: {
-        _id: 0,
-        userId: "$_id",
-        name: "$userInfo.name",
-        email: "$userInfo.email",
-        lastLat: "$last.lat",
-        lastLng: "$last.lng",
-        speed: "$last.speed",
-        timestamp: "$last.timestamp",
-      },
-    },
-  ]);
+exports.getUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user?.userId || req.query.userId; // ✅ adjust depending on your auth
+    console.log("Current user ID:", currentUserId);
 
-  console.log(agg);
-  res.json(agg);
+    const agg = await Location.aggregate([
+      { $sort: { timestamp: -1 } },
+      { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "userId",
+          as: "userInfo",
+        },
+      },
+      { $unwind: "$userInfo" },
+      {
+        $project: {
+          _id: 0,
+          userId: "$_id",
+          name: "$userInfo.name",
+          email: "$userInfo.email",
+          lastLat: "$last.lat",
+          lastLng: "$last.lng",
+          speed: "$last.speed",
+          timestamp: "$last.timestamp",
+        },
+      },
+      // 🚫 filter out signed-in user
+      ...(currentUserId
+        ? [{ $match: { userId: { $ne: currentUserId } } }]
+        : []),
+    ]);
+
+    res.json(agg);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
 };
+
 
 // Get the latest location for a specific user
 exports.getLatest = async (req, res) => {
@@ -119,12 +131,14 @@ exports.deleteHistory = async (req, res) => {
 // Create a safe zone
 exports.createZone = async (req, res) => {
   const { name, center, radius } = req.body;
+  console.log("Creating zone", req.user.userId, name, center, radius);
   const zone = await SafeZone.create({
     parentId: req.user.userId,
     name,
     center,
     radius,
   });
+  console.log(zone)
   res.json(zone);
 };
 

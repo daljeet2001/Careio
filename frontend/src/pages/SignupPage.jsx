@@ -34,17 +34,18 @@ function SignupPage() {
 
       const data = await res.json();
 
+
       if (!res.ok) {
         setError(data.msg || "Signup failed");
         setLoading(false);
         return;
       }
+      console.log("Signup successful:", data);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      alert("Signup successful 🎉");
-      navigate("/");
+      navigate("/home");
     } catch (err) {
       setError("Something went wrong. Try again.");
     } finally {
@@ -53,7 +54,7 @@ function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4 font-bebas">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -62,7 +63,7 @@ function SignupPage() {
       >
         <Card className="shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-2xl">
           <CardHeader className="text-center space-y-2">
-            <CardTitle className="text-3xl font-bold">Create account</CardTitle>
+            <CardTitle className="text-3xl font-bold">CAREIO</CardTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Sign up to get started
             </p>
@@ -114,7 +115,7 @@ function SignupPage() {
 
               <Button
                 type="submit"
-                className="w-full font-medium rounded-lg"
+                className="w-full font-medium rounded-lg font-bebas bg-black text-white hover:bg-gray-800 transition-colors"
                 disabled={loading}
               >
                 {loading ? (
@@ -134,15 +135,6 @@ function SignupPage() {
                   OR
                 </span>
               </div>
-
-              {/* Social signup placeholder */}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-lg"
-              >
-                Continue with Google
-              </Button>
             </form>
 
             {/* Footer */}

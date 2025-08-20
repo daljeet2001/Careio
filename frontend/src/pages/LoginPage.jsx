@@ -42,8 +42,8 @@ function LoginPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      alert("Login successful ✅");
-      navigate("/");
+     
+      navigate("/home");
     } catch (err) {
       setError("Something went wrong. Try again.");
     } finally {
@@ -61,14 +61,14 @@ function LoginPage() {
       >
         <Card className="shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-2xl">
           <CardHeader className="text-center space-y-2">
-            <CardTitle className="text-3xl font-bold">Welcome back</CardTitle>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <CardTitle className="text-3xl font-bebas font-bold">CAREIO</CardTitle>
+            <p className="text-sm text-gray-500 font-bebas dark:text-gray-400">
               Sign in to your account
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
+              <div className="space-y-2 font-bebas">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -81,7 +81,7 @@ function LoginPage() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 font-bebas">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
@@ -100,7 +100,7 @@ function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full font-medium rounded-lg"
+                className="w-full font-medium rounded-lg font-bebas bg-black text-white hover:bg-gray-800 transition-colors"
                 disabled={loading}
               >
                 {loading ? (
@@ -114,25 +114,16 @@ function LoginPage() {
               </Button>
 
               {/* Divider */}
-              <div className="relative flex items-center justify-center">
+              <div className="relative flex items-center justify-center font-bebas">
                 <span className="h-px w-full bg-gray-200 dark:bg-gray-700"></span>
                 <span className="absolute bg-white dark:bg-gray-900 px-2 text-sm text-gray-500 dark:text-gray-400">
                   OR
                 </span>
               </div>
-
-              {/* Social login placeholder */}
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-lg"
-              >
-                Continue with Google
-              </Button>
             </form>
 
             {/* Footer */}
-            <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 font-bebas">
               Don’t have an account?{" "}
               <a
                 href="/signup"
