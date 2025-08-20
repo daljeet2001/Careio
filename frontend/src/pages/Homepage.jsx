@@ -22,12 +22,12 @@ import {
   TileLayer,
   Marker,
   Popup,
-  Circle,
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { SocketContext } from "../context/socket.context";
+import ZoneCircle from "../components/Zone";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -47,6 +47,11 @@ function Homepage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
+  const { socket } = useContext(SocketContext);
+
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+  const mapRef = useRef(null);
 
   const [users, setUsers] = useState([]);
   const [myLocation, setMyLocation] = useState({
@@ -57,16 +62,14 @@ function Homepage() {
   const [zones, setZones] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState(null);
+
   const [zoneName, setZoneName] = useState("");
   const [zoneRadius, setZoneRadius] = useState(100);
   const [zoneCenter, setZoneCenter] = useState(null);
+  const [createZone, setCreateZone] = useState(false);
 
-  const mapRef = useRef(null);
-  const { socket } = useContext(SocketContext);
+  const defaultIcon = useMemo(() => new L.Icon.Default(), []);
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-  // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
       setLoadingUsers(true);
@@ -88,7 +91,6 @@ function Homepage() {
     else navigate("/login");
   }, [token, API_URL, navigate]);
 
-  // Fetch zones
   useEffect(() => {
     const fetchZones = async () => {
       try {
@@ -104,16 +106,21 @@ function Homepage() {
     if (token) fetchZones();
   }, [token, API_URL]);
 
-  // Update user location
   useEffect(() => {
+    if (!socket || !navigator.geolocation) return;
+
     const updateLocation = () => {
-      if (navigator.geolocation && socket) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          const locData = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            speed: pos.coords.speed ? pos.coords.speed * 3.6 : 0,
-          };
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const locData = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          speed: pos.coords.speed ? pos.coords.speed * 3.6 : 0,
+        };
+
+        if (
+          locData.latitude !== myLocation.latitude ||
+          locData.longitude !== myLocation.longitude
+        ) {
           setMyLocation(locData);
           socket.emit("send-location", {
             userId: user.id,
@@ -121,15 +128,15 @@ function Homepage() {
             lng: locData.longitude,
             speed: locData.speed,
           });
-        });
-      }
+        }
+      });
     };
-    updateLocation();
-    const interval = setInterval(updateLocation, 1000);
-    return () => clearInterval(interval);
-  }, [socket, user.id]);
 
-  // Receive other users' locations
+    updateLocation();
+    const interval = setInterval(updateLocation, 3000);
+    return () => clearInterval(interval);
+  }, [socket, user.id, myLocation.latitude, myLocation.longitude]);
+
   useEffect(() => {
     if (!socket) return;
     const handleReceiveLocation = (data) => {
@@ -162,13 +169,25 @@ function Homepage() {
     return () => socket.off("receive-location", handleReceiveLocation);
   }, [socket]);
 
-  useEffect(() => {
-    if (!socket) return;
-    const handleSpeedAlert = (alert) =>
-      alert.message && window.alert(alert.message);
-    socket.on("speed-alert", handleSpeedAlert);
-    return () => socket.off("speed-alert", handleSpeedAlert);
-  }, [socket]);
+  const userMarkers = useMemo(() => {
+    return users
+      .filter((u) => u.lastLat && u.lastLng)
+      .map((u) => (
+        <Marker
+          key={u.userId}
+          position={[u.lastLat, u.lastLng]}
+          icon={u.userId === user.id ? myIcon : defaultIcon}
+        >
+          <Popup>
+            <b>{u.userName || "Unnamed"}</b>
+            <br />
+            {u.userId === user.id
+              ? "You are here 🚶‍♂️"
+              : `🚗 ${u.speed ?? 0} km/h`}
+          </Popup>
+        </Marker>
+      ));
+  }, [users, user.id, defaultIcon]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
@@ -178,7 +197,7 @@ function Homepage() {
 
   const handleCreateZone = async () => {
     if (!zoneName || !zoneRadius || !zoneCenter) {
-      alert("Please enter zone name, radius, and select center on the map!");
+      alert("Enter zone name, radius, and select center!");
       return;
     }
     try {
@@ -200,38 +219,46 @@ function Homepage() {
       setZoneName("");
       setZoneRadius(100);
       setZoneCenter(null);
+      setCreateZone(false);
     } catch (err) {
-      console.error(err.message);
+      console.error(err);
     }
   };
 
-  const userMarkers = useMemo(
-    () =>
-      users
-        .filter((u) => u.lastLat && u.lastLng)
-        .map((u) => (
-          <Marker
-            key={u.userId}
-            position={[u.lastLat, u.lastLng]}
-            icon={u.userId === user.id ? myIcon : new L.Icon.Default()}
-          >
-            <Popup>
-              <b>{u.userName || "Unnamed"}</b>
-              <br />
-              {u.userId === user.id
-                ? "You are here 🚶‍♂️"
-                : `🚗 ${u.speed ?? 0} km/h`}
-            </Popup>
-          </Marker>
-        )),
-    [users, user.id]
-  );
+  const handleDeleteZone = async (zoneId) => {
+    try {
+      const res = await fetch(`${API_URL}/safezone/${zoneId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete zone");
+      setZones((prev) => prev.filter((z) => z._id !== zoneId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  // Component to handle map clicks for zone center
+  const handleUpdateZone = async (zone) => {
+    try {
+      const res = await fetch(`${API_URL}/safezone/${zone._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(zone),
+      });
+      if (!res.ok) throw new Error("Failed to update zone");
+      setZones((prev) => prev.map((z) => (z._id === zone._id ? zone : z)));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   function ZoneMarkerSetter() {
     useMapEvents({
       click(e) {
-        setZoneCenter({ lat: e.latlng.lat, lng: e.latlng.lng });
+        if (createZone) setZoneCenter({ lat: e.latlng.lat, lng: e.latlng.lng });
       },
     });
     return null;
@@ -239,14 +266,11 @@ function Homepage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* HEADER */}
       <header className="flex items-center justify-between px-4 py-3 shadow-md bg-white dark:bg-gray-800">
-        <Button variant="ghost" size="icon" onClick={() => {}}>
+        <Button variant="ghost" size="icon">
           <Menu className="h-6 w-6" />
         </Button>
-
         <div className="flex items-center gap-3">
-          {/* Users Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -276,10 +300,10 @@ function Homepage() {
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback>
-                          {u.userName?.charAt(0).toUpperCase()}
+                          {u.name?.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span>{u.userName || "Unnamed"}</span>
+                      <span>{u.name || "Unnamed"}</span>
                     </div>
                     {u.lastLat && u.lastLng && (
                       <span className="text-xs text-gray-500">
@@ -294,7 +318,6 @@ function Homepage() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
           <Avatar className="h-9 w-9">
             <AvatarImage src="https://github.com/shadcn.png" alt="User" />
             <AvatarFallback>
@@ -307,7 +330,6 @@ function Homepage() {
         </div>
       </header>
 
-      {/* MAIN */}
       <main className="p-6 space-y-4">
         <h1 className="text-2xl font-semibold">
           Welcome {user?.name || "User"}
@@ -316,28 +338,56 @@ function Homepage() {
           Live tracking with maps below.
         </p>
 
-        {/* Zone Creation */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 mb-4">
-          <Input
-            placeholder="Zone Name"
-            value={zoneName}
-            onChange={(e) => setZoneName(e.target.value)}
-          />
-          <Input
-            type="number"
-            placeholder="Radius (m)"
-            value={zoneRadius}
-            onChange={(e) => setZoneRadius(Number(e.target.value))}
-          />
-          <Button
-            onClick={handleCreateZone}
-            className="flex items-center gap-1"
-          >
-            <PlusCircle className="h-5 w-5" /> Add Zone
-          </Button>
+        <div className="mb-4 flex items-center w-full gap-2">
+          {!createZone ? (
+            <Button
+              onClick={() => setCreateZone(true)}
+              className="flex items-center gap-1"
+              variant="outline"
+            >
+              <PlusCircle className="h-5 w-5" /> Create Zone
+            </Button>
+          ) : (
+            <div className="flex flex-col mx-auto container max-w-2xl md:flex-row items-start md:items-center gap-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md w-full">
+              <Input
+                placeholder="Zone Name"
+                value={zoneName}
+                onChange={(e) => setZoneName(e.target.value)}
+                className="flex-1"
+              />
+              <Input
+                type="number"
+                placeholder="Radius (m)"
+                value={zoneRadius}
+                onChange={(e) => setZoneRadius(Number(e.target.value))}
+                className="w-24"
+              />
+              <div className="flex gap-1">
+                <Button
+                  onClick={handleCreateZone}
+                  className="flex items-center gap-1"
+                >
+                  <PlusCircle className="h-5 w-5" /> Add
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setCreateZone(false);
+                    setZoneName("");
+                    setZoneRadius(100);
+                    setZoneCenter(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 md:mt-0">
+                Click on the map to select center
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Map */}
         <div className="h-[500px] w-full rounded-xl overflow-hidden shadow-md relative z-10">
           {myLocation.latitude ? (
             <MapContainer
@@ -361,37 +411,21 @@ function Homepage() {
               {userMarkers}
 
               {zones.map((zone) => (
-                <Circle
+                <ZoneCircle
                   key={zone._id}
-                  center={[zone.center.lat, zone.center.lng]}
-                  radius={zone.radius}
-                  pathOptions={{
-                    color: "blue",
-                    fillOpacity: 0.1,
-                    stroke: "#fff",
-                  }}
-                >
-                  <Popup>
-                    <b>{zone.name}</b>
-                    <br />
-                    Radius: {zone.radius} m
-                  </Popup>
-                </Circle>
+                  zone={zone}
+                  onDelete={handleDeleteZone}
+                  onUpdate={handleUpdateZone}
+                />
               ))}
 
-              {/* Zone selection */}
-              <ZoneMarkerSetter />
-
-              {/* Preview selected zone center */}
-              {zoneCenter && (
+              {createZone && zoneCenter && (
                 <Marker position={[zoneCenter.lat, zoneCenter.lng]}>
-                  <Popup>
-                    <b>{zoneName || "Selected Zone"}</b>
-                    <br />
-                    Center of the zone
-                  </Popup>
+                  <Popup>Selected Center</Popup>
                 </Marker>
               )}
+
+              {createZone && <ZoneMarkerSetter />}
             </MapContainer>
           ) : (
             <div className="w-full h-full flex items-center justify-center animate-pulse">

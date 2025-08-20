@@ -70,35 +70,36 @@ exports.getHistory = async (req, res) => {
 };
 
 // Get all users with their latest location
-// exports.getUsers = async (_req, res) => {
-//   const agg = await Location.aggregate([
-//     { $sort: { timestamp: -1 } }, 
-//     { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
-//     {
-//       $lookup: {
-//         from: "users",
-//         localField: "_id",
-//         foreignField: "userId",
-//         as: "userInfo",
-//       },
-//     },
-//     { $unwind: "$userInfo" },
-//     {
-//       $project: {
-//         _id: 0,
-//         userId: "$_id",
-//         name: "$userInfo.name",
-//         email: "$userInfo.email",
-//         lastLat: "$last.lat",
-//         lastLng: "$last.lng",
-//         speed: "$last.speed",
-//         timestamp: "$last.timestamp",
-//       },
-//     },
-//   ]);
+exports.getUsers = async (_req, res) => {
+  const agg = await Location.aggregate([
+    { $sort: { timestamp: -1 } },
+    { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "userId",
+        as: "userInfo",
+      },
+    },
+    { $unwind: "$userInfo" },
+    {
+      $project: {
+        _id: 0,
+        userId: "$_id",
+        name: "$userInfo.name",
+        email: "$userInfo.email",
+        lastLat: "$last.lat",
+        lastLng: "$last.lng",
+        speed: "$last.speed",
+        timestamp: "$last.timestamp",
+      },
+    },
+  ]);
+  console.log(agg)
 
-//   res.json(agg);
-// };
+  res.json(agg);
+};
 
 // Get the latest location for a specific user
 exports.getLatest = async (req, res) => {
@@ -116,6 +117,7 @@ exports.deleteHistory = async (req, res) => {
 
 // Create a safe zone
 exports.createZone = async (req, res) => {
+  console.log("creating zone");
   const { name, center, radius } = req.body;
   const zone = await SafeZone.create({
     parentId: req.user.userId,
@@ -123,7 +125,7 @@ exports.createZone = async (req, res) => {
     center,
     radius,
   });
-  console.log(zone)
+  console.log(zone);
   res.json(zone);
 };
 
@@ -136,7 +138,8 @@ exports.getZones = async (req, res) => {
 // Delete a safe zone
 exports.deleteZone = async (req, res) => {
   try {
-    const deleted = await SafeZone.findByIdAndDelete(req.params.zoneId);
+    console.log(req.params)
+    const deleted = await SafeZone.findByIdAndDelete(req.params.safezoneId);
     if (!deleted) return res.status(404).json({ msg: "Zone not found" });
     res.json({ msg: "Zone deleted", deleted });
   } catch (err) {

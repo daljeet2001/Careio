@@ -30,14 +30,13 @@ io.on("connection", (socket) => {
     const userId = data.userId;
     // Save location
     console.log(data);
-    // const loc = await Location.create({
-    //   userId,
-    //   lat: data.lat,
-    //   lng: data.lng,
-    //   speed: data.speed,
-    //   timestamp: new Date(),  
-    // });
-    // console.log("check",loc);
+    const loc = await Location.create({
+      userId,
+      lat: data.lat,
+      lng: data.lng,
+      speed: data.speed,
+      timestamp: new Date(),
+    });
     // Speed alert check
     const SPEED_LIMIT = 60; // km/h
     if (data.speed && data.speed > SPEED_LIMIT) {
