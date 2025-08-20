@@ -126,7 +126,7 @@ function LoginPage() {
             <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 font-bebas">
               Don’t have an account?{" "}
               <a
-                href="/signup"
+                href="https://careio-h4u2.vercel.app/signup"
                 className="font-medium text-blue-600 hover:underline"
               >
                 Sign up

@@ -141,7 +141,7 @@ function SignupPage() {
             <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
               Already have an account?{" "}
               <a
-                href="/login"
+                href="ttps://careio-h4u2.vercel.app/login"
                 className="font-medium text-blue-600 hover:underline"
               >
                 Log in
