@@ -151,7 +151,7 @@ exports.getZones = async (req, res) => {
 // Delete a safe zone
 exports.deleteZone = async (req, res) => {
   try {
-    const deleted = await SafeZone.findByIdAndDelete(req.params.zoneId);
+    const deleted = await SafeZone.findByIdAndDelete(req.params.safezoneId);
     if (!deleted) return res.status(404).json({ msg: "Zone not found" });
     res.json({ msg: "Zone deleted", deleted });
   } catch (err) {

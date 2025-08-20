@@ -7,7 +7,7 @@ const LandingPage = () => {
   
     >
       <Navbar />
-      <div className="flex flex-col items-center justify-center h-full p-4">
+      <div className="flex flex-col items-center justify-top h-full p-4">
         <h1 className="text-6xl font-bold font-bebas text-black text-center">
           Keep Your Loved Ones Safe, Wherever They Are
         </h1>

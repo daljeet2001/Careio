@@ -6,6 +6,8 @@ import React, {
   useRef,
   useContext,
 } from "react";
+import { toast } from "react-hot-toast";
+
 import { Menu, LogOut, Users, PlusCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -50,7 +52,7 @@ const flagIcon = new L.Icon({
 });
 
 
-function HomePage() {
+function HomePage2() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   console.log("User:", user);
@@ -66,8 +68,11 @@ function HomePage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState(null);
   const [zoneName, setZoneName] = useState("");
-  const [zoneRadius, setZoneRadius] = useState(100);
+  const [zoneRadius, setZoneRadius] = useState();
   const [zoneCenter, setZoneCenter] = useState(null);
+  const [zoneDropdownOpen, setZoneDropdownOpen] = useState(false);
+  const [zonesDropdownOpen, setZonesDropdownOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const mapRef = useRef(null);
   const { socket } = useContext(SocketContext);
@@ -182,14 +187,18 @@ function HomePage() {
   const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/login");
+    navigate("/");
   }, [navigate]);
 
   const handleCreateZone = async () => {
     if (!zoneName || !zoneRadius || !zoneCenter) {
-      alert("Please enter zone name, radius, and select center on the map!");
-      return;
+//     toast.error("Please enter zone name, radius, and select center on the map", {
+//   icon: "⚠️", // your icon or emoji
+// });
+showDangerToast();
+     return;
     }
+    
     try {
       const res = await fetch(`${API_URL}/safezone/create`, {
         method: "POST",
@@ -241,112 +250,228 @@ const userMarkers = useMemo(
     return null;
   }
 
+ 
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* HEADER */}
-      <header className="flex items-center justify-between px-4 py-3 shadow-md bg-white dark:bg-gray-800 relative z-50">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setSidebarOpen((prev) => !prev)}
+      {/* NAVBAR */}
+    <nav className="w-full px-6 py-4 flex bg-none items-center justify-between fixed z-20">
+      {/* Brand */}
+      <div className="text-4xl pl-12 text-black  font-bebas tracking-wide cursor-pointer">
+        Careio
+      </div>
+
+      {/* Right side */}
+      
+        <div className="flex items-center gap-1 relative">
+
+    
+
+          {/* Users Dropdown Trigger */}
+          <button
+            className="flex items-center gap-1 px-3 py-1 font-bebas  text-black "
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+          >
+             Track
+          </button>
+
+
+ {/* Zones Dropdown */}
+<div className="relative">
+  <button
+    onClick={() => setZonesDropdownOpen(!zonesDropdownOpen)}
+    className="flex items-center gap-1 px-3 py-1 font-bebas text-black"
+  >
+    Zones
+  </button>
+
+{zonesDropdownOpen && (
+  <div className="absolute right-0 mt-4 w-64 bg-white border border-gray-200 rounded-md  z-50 p-4 cursor-pointer">
+    <div className="flex justify-end mb-2">
+      <button
+        onClick={() => setZonesDropdownOpen(false)}
+        className="text-gray-500 hover:text-gray-700 transition text-sm"
+      >
+        ✕
+      </button>
+    </div>
+
+    {zones.length ? (
+        console.log("Zones:", zones),
+      zones.map((zone) => (
+        <div
+          key={zone.id}
+          className="px-2 py-1 flex flex-col gap-1 hover:rounded-md  hover:border hover:border-gray-300 transition-all"
+                  onClick={() => {
+                // Zoom to zone on map
+                if (zone.center.lat && zone.center.lng) {
+                  mapRef.current?.setView([zone.center.lat, zone.center.lng], 15, { animate: true });
+                }
+              }}
         >
-          <Menu className="h-6 w-6" />
-        </Button> 
-        <div className="">Careio</div>
+          <div className="flex justify-between items-center">
+            <div
+              className="flex flex-col"
+    
+            >
+              <span className="font-bebas font-medium">{zone.name}</span>
+              <span className="text-xs text-gray-500 font-bebas">{zone.radius}m radius</span>
+            </div>
 
-        <div className="flex items-center gap-3">
-          {/* Users Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Users className="h-4 w-4" /> Users
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 z-[9999]">
-              {loadingUsers ? (
-                <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-              ) : error ? (
-                <DropdownMenuItem disabled>{error}</DropdownMenuItem>
-              ) : users.length ? (
-                users.map((u) => (
-                  <DropdownMenuItem
-                    key={u.userId}
-                    className="flex flex-col items-start gap-1 py-2"
-                    onClick={() =>
-                      mapRef.current?.setView([u.lastLat, u.lastLng], 15, {
-                        animate: true,
-                      })
-                    }
-                  >
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback>
-                          {u.name?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span>{u.name || "Unnamed"}</span>
-                    </div>
-                    {u.lastLat && u.lastLng && (
-                      <span className="text-xs text-gray-500">
-                        📍 {u.lastLat.toFixed(4)}, {u.lastLng.toFixed(4)}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled>No users found</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Avatar className="h-9 w-9">
-            <AvatarImage src="https://github.com/shadcn.png" alt="User" />
-            <AvatarFallback>
-              {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-            </AvatarFallback>
-          </Avatar>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-1" /> Logout
-          </Button>
+            <button
+              onClick={async (e) => {
+                e.stopPropagation(); // Prevent zoom on map
+                try {
+                  const res = await fetch(`${API_URL}/${zone._id}`, {
+                    method: "DELETE",
+                    headers: {
+                      "Content-Type": "application/json",
+                      // Add auth token if needed
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                  });
+                  if (!res.ok) throw new Error("Failed to delete zone");
+                  // Remove zone from state
+                  setZones((prev) => prev.filter((z) => z.id !== zone.id));
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="text-red-500 hover:text-red-700 text-xs transition ml-2  cursor-progress"
+            >
+              Delete
+            </button>
+          </div>
         </div>
-      </header>
+      ))
+    ) : (
+      <div className="px-2 py-1 text-sm font-bebas text-gray-500">No zones found</div>
+    )}
+  </div>
+)}
+
+</div>
+
+
+   
+  {/* Add Zone Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setZoneDropdownOpen(!zoneDropdownOpen)}
+              className="flex items-center gap-1 px-3 py-1 font-bebas text-black"
+            >
+              Add Zone
+            </button>
+
+            {zoneDropdownOpen && (
+              <div className="absolute right-0 mt-4 w-64 bg-white border border-gray-200 rounded-md z-50 p-4">
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => setZoneDropdownOpen(false)}
+                    className="text-gray-500 hover:text-gray-700 transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Zone Name"
+                  value={zoneName}
+                  onChange={(e) => setZoneName(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 font-bebas rounded-md mb-2"
+                />
+                <input
+                  type="number"
+                  placeholder="Radius (meters)"
+                  value={zoneRadius}
+                  onChange={(e) => setZoneRadius(Number(e.target.value))}
+                  className="w-full px-2 py-1 border border-gray-300 rounded-md mb-2 font-bebas"
+                />
+                <button
+                  onClick={() => {
+                    handleCreateZone(zoneName, zoneRadius);
+                    setZoneDropdownOpen(false);
+                    setZoneName("");
+                    setZoneRadius("");
+                  }}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-black font-bebas text-white rounded-md "
+                >
+                  Add Zone
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Users Dropdown Menu */}
+{dropdownOpen && (
+  <div className="absolute right-0 top-12 w-64 bg-white border border-gray-200 rounded-md  z-50 p-4">
+    {/* Close Button */}
+    <div className="flex justify-end mb-2">
+      <button
+        onClick={() => setDropdownOpen(false)}
+        className="text-gray-500 hover:text-gray-700 transition text-sm"
+      >
+        ✕
+      </button>
+    </div>
+
+    {loadingUsers ? (
+      <div className="px-2 py-1 text-sm text-gray-500 font-bebas">Loading...</div>
+    ) : error ? (
+      <div className="px-2 py-1 text-sm font-bebas text-red-500">{error}</div>
+    ) : users.length ? (
+      users.map((u) => (
+        <div
+          key={u.userId}
+          className="px-2 py-1 flex flex-col gap-1 hover:rounded-md cursor-pointer hover:border hover:border-gray-300 transition-all"
+          onClick={() =>
+            mapRef.current?.setView([u.lastLat, u.lastLng], 15, { animate: true })
+          }
+        >
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
+              {u.name?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <span className="font-bebas">{u.name || "Unnamed"}</span>
+          </div>
+          {u.lastLat && u.lastLng && (
+            <span className="text-xs text-gray-500">
+              📍 {u.lastLat.toFixed(4)}, {u.lastLng.toFixed(4)}
+            </span>
+          )}
+        </div>
+      ))
+    ) : (
+      <div className="px-2 py-1 text-sm font-bebas text-gray-500">No users found</div>
+    )}
+  </div>
+)}
+
+
+       
+
+
+      
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1 px-3 py-1 font-bebas text-black"
+          >
+         Logout
+          </button>
+
+       
+        </div>
+     
+    </nav>
+      
 
       {/* MAIN */}
-      <main className="p-6 space-y-4">
-        <h1 className="text-2xl font-semibold">
-          Welcome {user?.name || "User"}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-300">
-          Live tracking with maps below.
-        </p>
-
-        {/* Zone Creation */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 mb-4">
-          <Input
-            placeholder="Zone Name"
-            value={zoneName}
-            onChange={(e) => setZoneName(e.target.value)}
-          />
-          <Input
-            type="number"
-            placeholder="Radius (m)"
-            value={zoneRadius}
-            onChange={(e) => setZoneRadius(Number(e.target.value))}
-          />
-          <Button
-            onClick={handleCreateZone}
-            className="flex items-center gap-1"
-          >
-            <PlusCircle className="h-5 w-5" /> Add Zone
-          </Button>
-        </div>
+      <main className=" space-y-4">
 
         {/* Map */}
-        <div className="h-[500px] w-full rounded-xl overflow-hidden shadow-md relative z-10">
+        <div className="w-screen h-screen overflow-hidden relative z-10">
           {myLocation.latitude ? (
             <MapContainer
               center={[myLocation.latitude, myLocation.longitude]}
@@ -394,16 +519,16 @@ const userMarkers = useMemo(
               {zoneCenter && (
                 <Marker position={[zoneCenter.lat, zoneCenter.lng]} icon={flagIcon}>
                   <Popup>
-                    <b>{zoneName || "Selected Zone"}</b>
+                    <b className="font-bebas">{zoneName || "Selected Zone"}</b>
                     <br />
-                    Center of the zone
+                
                   </Popup>
                 </Marker>
               )}
             </MapContainer>
           ) : (
             <div className="w-full h-full flex items-center justify-center animate-pulse">
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-gray-600 dark:text-gray-300 font-bebas text-lg">
                 Loading location...
               </p>
             </div>
@@ -414,4 +539,31 @@ const userMarkers = useMemo(
   );
 }
 
-export default HomePage;
+export default HomePage2;
+
+
+const showDangerToast = () => {
+  toast.custom(
+    (t) => (
+      <div
+        className="flex items-center p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400"
+        role="alert"
+      >
+        <svg
+          className="shrink-0 inline w-4 h-4 mr-3"
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+        </svg>
+        <span className="sr-only">Info</span>
+        <div>
+          <span className="font-medium"></span> Please select center on the map.
+        </div>
+      </div>
+    ),
+    { duration: 4000 } // toast duration in ms
+  );
+};

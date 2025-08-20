@@ -4,7 +4,7 @@
 @import "tw-animate-css";
 
 body {
-  background: url('/500.jpg') no-repeat center center fixed;
+  background: url('/photo.png') no-repeat center center fixed;
   background-size: cover;
 }
 
