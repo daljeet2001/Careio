@@ -35,26 +35,44 @@ io.on("connection", (socket) => {
       speed: data.speed,
       timestamp: new Date(),  
     });
-    // console.log("Location saved:", loc);
-    // console.log("check",loc);
-    // Speed alert check
-    // const SPEED_LIMIT = 60; // km/h
-    // if (data.speed && data.speed > SPEED_LIMIT) {
-    //   io.to(socket.id).emit("speed-alert", {
-    //     userId,
-    //     speed: data.speed,
-    //     message: `Speed limit exceeded! ${data.speed} km/h`,
-    //   });
-    // }
-    // console.log("check");
 
-    // io.emit("receive-location", {
-    //   userId,
-    //   lat: data.lat,
-    //   lng: data.lng,
-    //   speed: data.speed,
-    // });
   });
+ // Interval to send all users' latest location every 5 seconds
+  // const intervalId = setInterval(async () => {
+  //   try {
+  //     const users = await Location.aggregate([
+  //       { $sort: { timestamp: -1 } },
+  //       { $group: { _id: "$userId", last: { $first: "$$ROOT" } } },
+  //       {
+  //         $lookup: {
+  //           from: "users",
+  //           localField: "_id",
+  //           foreignField: "userId",
+  //           as: "userInfo",
+  //         },
+  //       },
+  //       { $unwind: "$userInfo" },
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           userId: "$_id",
+  //           name: "$userInfo.name",
+  //           email: "$userInfo.email",
+  //           lastLat: "$last.lat",
+  //           lastLng: "$last.lng",
+  //           speed: "$last.speed",
+  //           timestamp: "$last.timestamp",
+  //         },
+  //       },
+  //     ]);
+
+  //     socket.emit("receive-all-locations", users);
+  //   } catch (err) {
+  //     console.error("Error emitting locations:", err);
+  //   }
+  // }, 5000);
+
+
 
   socket.on("disconnect", () => {
     console.log("🔌 socket disconnected", socket.id);

@@ -36,17 +36,17 @@ delete L.Icon.Default.prototype._getIconUrl;
 
 // Override global defaults
 L.Icon.Default.mergeOptions({
-  iconUrl: "/pin.png", // your Flaticon icon
-  iconRetinaUrl: "pin.png", // same for retina
+  iconUrl: "/pin2.png", // your Flaticon icon
+  iconRetinaUrl: "pin2.png", // same for retina
   shadowUrl: null, // no shadow
-  iconSize: [50, 50], // adjust size (depends on image)
+  iconSize: [30, 30], // adjust size (depends on image)
   iconAnchor: [17, 35], // bottom-center point
   popupAnchor: [0, -30], // popup above the icon
 });
 const flagIcon = new L.Icon({
-  iconUrl: "/flag.png",
-  iconRetinaUrl: "/flag.png",
-  iconSize: [60, 60],
+  iconUrl: "/pin.png",
+  iconRetinaUrl: "/pin.png",
+  iconSize: [30, 30],
   iconAnchor: [30, 60],
   popupAnchor: [0, -50],
 });
@@ -55,7 +55,7 @@ const flagIcon = new L.Icon({
 function HomePage2() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  console.log("User:", user);
+//   console.log("User:", user);
   const token = localStorage.getItem("token");
 
   const [users, setUsers] = useState([]);
@@ -88,7 +88,10 @@ function HomePage2() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error("Failed to fetch users");
-        setUsers(await res.json());
+        const data= await res.json();
+        console.log("Fetched users:", data);
+     
+        setUsers(data);
         setError(null);
       } catch (err) {
         console.error(err);
@@ -99,6 +102,12 @@ function HomePage2() {
     };
     if (token) fetchUsers();
     else navigate("/login");
+    // Poll every 5 seconds
+  const intervalId = setInterval(fetchUsers, 5000);
+  
+
+  // Cleanup on unmount
+  return () => clearInterval(intervalId);
   }, [token, API_URL, navigate]);
 
   // Fetch zones
@@ -143,38 +152,39 @@ function HomePage2() {
     return () => clearInterval(interval);
   }, [socket, user.id]);
 
-  // Receive other users' locations
-  useEffect(() => {
-    if (!socket) return;
-    const handleReceiveLocation = (data) => {
-      setUsers((prev) => {
-        const idx = prev.findIndex((u) => u.userId === data.userId);
-        if (idx !== -1) {
-          const updated = [...prev];
-          updated[idx] = {
-            ...updated[idx],
-            lastLat: data.lat,
-            lastLng: data.lng,
-            speed: data.speed,
-          };
-          return updated;
-        } else {
-          return [
-            ...prev,
-            {
-              userId: data.userId,
-              lastLat: data.lat,
-              lastLng: data.lng,
-              speed: data.speed,
-              userName: data.userName || "Unnamed",
-            },
-          ];
-        }
-      });
-    };
-    socket.on("receive-location", handleReceiveLocation);
-    return () => socket.off("receive-location", handleReceiveLocation);
-  }, [socket]);
+  // Update  users' locations
+//   useEffect(() => {
+//     if (!socket) return;
+//     const handleReceiveLocation = (data) => {
+//       setUsers((prev) => {
+//         const idx = prev.findIndex((u) => u.userId === data.userId);
+//         if (idx !== -1) {
+//           const updated = [...prev];
+//           updated[idx] = {
+//             ...updated[idx],
+//             lastLat: data.lat,
+//             lastLng: data.lng,
+//             speed: data.speed,
+//           };
+//           return updated;
+//         } else {
+//           return [
+//             ...prev,
+//             {
+//               userId: data.userId,
+//               lastLat: data.lat,
+//               lastLng: data.lng,
+//               speed: data.speed,
+//               userName: data.userName || "Unnamed",
+//             },
+//           ];
+//         }
+//       });
+//     };
+//     socket.on("receive-location", handleReceiveLocation);
+//     console.log("upadted users:", users);
+//     return () => socket.off("receive-location", handleReceiveLocation);
+//   }, [socket]);
 
   // useEffect(() => {
   //   if (!socket) return;
@@ -263,7 +273,7 @@ const userMarkers = useMemo(
 
       {/* Right side */}
       
-        <div className="flex items-center gap-1 relative">
+        <div className="flex items-center  relative">
 
     
 
